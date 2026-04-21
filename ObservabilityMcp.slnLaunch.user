@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "CrudTelemetryApp.Api\\CrudTelemetryApp.Api.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "CrudTelemetryApp.McpServer\\CrudTelemetryApp.McpServer.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

@@ -1,0 +1,5 @@
+{
+  "LogDirectory": "./otel-logs",
+  "FileSize": 32768,
+  "LogLevel": "Verbose"
+}

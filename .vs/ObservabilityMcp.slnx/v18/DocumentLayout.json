@@ -1,0 +1,90 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\a\\ObservabilityMcp\\ObservabilityMcp\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{69AC89F0-8EA7-24B8-3FF7-72D95E19BA51}|CrudTelemetryApp.McpServer\\CrudTelemetryApp.McpServer.csproj|c:\\a\\observabilitymcp\\observabilitymcp\\crudtelemetryapp.mcpserver\\crudtelemetry.mcpserver.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}",
+      "RelativeMoniker": "D:0:0:{69AC89F0-8EA7-24B8-3FF7-72D95E19BA51}|CrudTelemetryApp.McpServer\\CrudTelemetryApp.McpServer.csproj|solutionrelative:crudtelemetryapp.mcpserver\\crudtelemetry.mcpserver.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{089100B1-113F-4E66-888A-E83F3999EAFD}|Solution Items{089100B1-113F-4E66-888A-E83F3999EAFD}|C:\\a\\ObservabilityMcp\\ObservabilityMcp\\mcp-servers.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{089100B1-113F-4E66-888A-E83F3999EAFD}|Solution Items{089100B1-113F-4E66-888A-E83F3999EAFD}|solutionrelative:mcp-servers.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 9,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:129:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:129:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:130:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{c6f34f0d-7ae5-4f3a-be61-fe0c21ae9eb8}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cde3}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cde3}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "CrudTelemetry.McpServer.http",
+              "DocumentMoniker": "C:\\a\\ObservabilityMcp\\ObservabilityMcp\\CrudTelemetryApp.McpServer\\CrudTelemetry.McpServer.http",
+              "RelativeDocumentMoniker": "CrudTelemetryApp.McpServer\\CrudTelemetry.McpServer.http",
+              "ToolTip": "C:\\a\\ObservabilityMcp\\ObservabilityMcp\\CrudTelemetryApp.McpServer\\CrudTelemetry.McpServer.http",
+              "RelativeToolTip": "CrudTelemetryApp.McpServer\\CrudTelemetry.McpServer.http",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAHYAAAATAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003502|",
+              "WhenOpened": "2026-04-21T03:37:13.436Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "mcp-servers.json",
+              "DocumentMoniker": "C:\\a\\ObservabilityMcp\\ObservabilityMcp\\mcp-servers.json",
+              "RelativeDocumentMoniker": "mcp-servers.json",
+              "ToolTip": "C:\\a\\ObservabilityMcp\\ObservabilityMcp\\mcp-servers.json",
+              "RelativeToolTip": "mcp-servers.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-04-21T03:29:10.306Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

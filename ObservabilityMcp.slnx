@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="mcp-servers.json" />
+  </Folder>
+  <Project Path="CrudTelemetryApp.Api/CrudTelemetryApp.Api.csproj" />
+  <Project Path="CrudTelemetryApp.McpServer/CrudTelemetryApp.McpServer.csproj" />
+  <Project Path="CrudTelemetryApp.Shared/CrudTelemetryApp.Shared.csproj" />
+</Solution>

@@ -1,0 +1,83 @@
+﻿using CrudTelemetryApp.Api.Data;
+using CrudTelemetryApp.Api.Services;
+using CrudTelemetryApp.Api.Telemetry;
+using Microsoft.EntityFrameworkCore;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Instrumentation.Runtime;
+using Serilog;
+
+namespace CrudTelemetryApp.Api
+{
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            var builder = WebApplication.CreateBuilder(args);
+
+            // Configure Serilog
+            builder.Host.UseSerilog((context, configuration) => configuration
+                .ReadFrom.Configuration(context.Configuration)
+                .Enrich.FromLogContext()
+                .Enrich.WithProperty("ServiceName", TelemetryConfig.ServiceName)
+                .Enrich.WithProperty("ServiceVersion", TelemetryConfig.ServiceVersion)
+                .WriteTo.Console());
+
+            // Add SQL Server LocalDB
+            builder.Services.AddDbContext<ProductDbContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+            // Add services
+            builder.Services.AddControllers();
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen();
+            builder.Services.AddScoped<IProductService, ProductService>();
+
+            // Configure OpenTelemetry
+            builder.Services.AddOpenTelemetry()
+                .ConfigureResource(resource => resource
+                    .AddService(TelemetryConfig.ServiceName, serviceVersion: TelemetryConfig.ServiceVersion))
+                .WithTracing(tracing => tracing
+                    .AddSource(TelemetryConfig.ServiceName)
+                    .AddAspNetCoreInstrumentation(options =>
+                    {
+                        options.RecordException = true;
+                        options.EnrichWithHttpRequest = (activity, request) =>
+                        {
+                            activity.SetTag("http.client_ip", request.HttpContext.Connection.RemoteIpAddress);
+                        };
+                    })
+                    .AddHttpClientInstrumentation()
+                    .AddEntityFrameworkCoreInstrumentation()
+                    .AddConsoleExporter())
+                .WithMetrics(metrics => metrics
+                    .AddMeter(TelemetryConfig.ServiceName)
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddRuntimeInstrumentation()
+                    .AddConsoleExporter());
+
+            var app = builder.Build();
+
+            // Ensure database is created
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ProductDbContext>();
+                db.Database.EnsureCreated();
+            }
+
+            app.UseSerilogRequestLogging();
+
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
+
+            app.UseHttpsRedirection();
+            app.MapControllers();
+            app.Run();
+        }
+    }
+}

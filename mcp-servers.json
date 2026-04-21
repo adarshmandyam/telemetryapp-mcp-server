@@ -1,0 +1,14 @@
+﻿{
+  "servers": [
+    {
+      "id": "crudtelemetry-local",
+      "name": "CrudTelemetryApp (local)",
+      "type": "streaming-http",
+      "url": "http://localhost:5139/mcp",
+      "description": "Local MCP server for CrudTelemetryApp (streaming-http)",
+      "headers": {
+        "Accept": "application/json, text/event-stream"
+      }
+    }
+  ]
+}

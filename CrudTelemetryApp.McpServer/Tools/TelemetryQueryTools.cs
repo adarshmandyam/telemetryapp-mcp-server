@@ -1,0 +1,466 @@
+using System.ComponentModel;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Server;
+
+namespace CrudTelemetryApp.McpServer.Tools;
+
+[McpServerToolType]
+public partial class TelemetryQueryTools
+{
+    private readonly HttpClient _httpClient;
+    private readonly string _tracesEndpoint;
+    private readonly string _metricsEndpoint;
+    private readonly string _iisLogPath;
+    private readonly ILogger<TelemetryQueryTools> _logger;
+
+    public TelemetryQueryTools(IHttpClientFactory httpClientFactory, IConfiguration config, ILogger<TelemetryQueryTools> logger)
+    {
+        _logger = logger;
+        try
+        {
+            _logger.LogInformation("Constructing TelemetryQueryTools");
+            _httpClient = httpClientFactory.CreateClient("TelemetryApi");
+
+            // Backward-compatible fallback to Telemetry:QueryEndpoint
+            var legacyEndpoint = config["Telemetry:QueryEndpoint"] ?? "http://localhost:16686";
+            _tracesEndpoint = config["Telemetry:TracesEndpoint"] ?? legacyEndpoint;
+            _metricsEndpoint = config["Telemetry:MetricsEndpoint"] ?? "http://localhost:9090";
+
+            _iisLogPath = config["IIS:LogPath"] ?? @"C:\inetpub\logs\LogFiles";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "TelemetryQueryTools constructor failed");
+            throw;
+        }
+    }
+
+    [McpServerTool, Description("Query OpenTelemetry traces by service name and optional time range")]
+    public async Task<string> QueryTraces(
+        [Description("Service name to filter traces")] string serviceName,
+        [Description("Start time in ISO 8601 format (optional)")] string? startTime = null,
+        [Description("End time in ISO 8601 format (optional)")] string? endTime = null,
+        [Description("Maximum number of traces to return")] int limit = 20)
+    {
+        var start = startTime ?? DateTime.UtcNow.AddHours(-1).ToString("o");
+        var end = endTime ?? DateTime.UtcNow.ToString("o");
+
+        var queryUrl = $"{_tracesEndpoint}/api/traces?service={serviceName}&start={start}&end={end}&limit={limit}";
+
+        try
+        {
+            var response = await _httpClient.GetAsync(queryUrl);
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                return FormatTracesResponse(content);
+            }
+            return $"Failed to query traces: {response.StatusCode}";
+        }
+        catch (Exception ex)
+        {
+            return $"Error querying traces: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description("Query Prometheus metrics using PromQL - instant query")]
+    public async Task<string> QueryPrometheusMetrics(
+        [Description("PromQL query expression (e.g., 'products_created_total' or 'rate(http_server_request_duration_count[5m])')")] string query,
+        [Description("Query time (ISO 8601, defaults to now)")] string? time = null)
+    {
+        try
+        {
+            var encodedQuery = Uri.EscapeDataString(query);
+            var timeParam = time != null ? $"&time={Uri.EscapeDataString(time)}" : "";
+            var queryUrl = $"{_metricsEndpoint}/api/v1/query?query={encodedQuery}{timeParam}";
+
+            var response = await _httpClient.GetAsync(queryUrl);
+            var content = await response.Content.ReadAsStringAsync();
+            
+            if (response.IsSuccessStatusCode)
+            {
+                return FormatPrometheusInstantResponse(content);
+            }
+            return $"Failed to query Prometheus: {response.StatusCode}\n{content}";
+        }
+        catch (Exception ex)
+        {
+            return $"Error querying Prometheus: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description("Query Prometheus metrics over a time range")]
+    public async Task<string> QueryMetricsRange(
+        [Description("PromQL query expression")] string query,
+        [Description("Start time (ISO 8601)")] string? start = null,
+        [Description("End time (ISO 8601, defaults to now)")] string? end = null,
+        [Description("Step duration (e.g., '15s', '1m', '5m')")] string step = "1m")
+    {
+        try
+        {
+            var startTime = start ?? DateTime.UtcNow.AddHours(-1).ToString("o");
+            var endTime = end ?? DateTime.UtcNow.ToString("o");
+            
+            var encodedQuery = Uri.EscapeDataString(query);
+            var queryUrl = $"{_metricsEndpoint}/api/v1/query_range?query={encodedQuery}&start={startTime}&end={endTime}&step={step}";
+
+            var response = await _httpClient.GetAsync(queryUrl);
+            var content = await response.Content.ReadAsStringAsync();
+            
+            if (response.IsSuccessStatusCode)
+            {
+                return FormatPrometheusRangeResponse(content);
+            }
+            return $"Failed to query metrics range: {response.StatusCode}\n{content}";
+        }
+        catch (Exception ex)
+        {
+            return $"Error querying Prometheus range: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description("List all available Prometheus metrics")]
+    public async Task<string> ListPrometheusMetrics()
+    {
+        try
+        {
+            var queryUrl = $"{_metricsEndpoint}/api/v1/label/__name__/values";
+
+            var response = await _httpClient.GetAsync(queryUrl);
+            var content = await response.Content.ReadAsStringAsync();
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var json = JsonDocument.Parse(content);
+                var metrics = json.RootElement.GetProperty("data").EnumerateArray()
+                    .Select(m => m.GetString())
+                    .OrderBy(m => m)
+                    .ToList();
+                
+                return JsonSerializer.Serialize(new 
+                { 
+                    TotalMetrics = metrics.Count,
+                    Metrics = metrics 
+                }, new JsonSerializerOptions { WriteIndented = true });
+            }
+            return $"Failed to list metrics: {response.StatusCode}\n{content}";
+        }
+        catch (Exception ex)
+        {
+            return $"Error listing Prometheus metrics: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description("Get current values for key application metrics")]
+    public async Task<string> GetApplicationMetrics()
+    {
+        try
+        {
+            var queries = new[] 
+            { 
+                "products_created_total",
+                "products_deleted_total", 
+                "active_products",
+                "http_server_request_duration_count",
+                "process_cpu_usage"
+            };
+
+            var results = new List<object>();
+            
+            foreach (var query in queries)
+            {
+                var encodedQuery = Uri.EscapeDataString(query);
+                var queryUrl = $"{_metricsEndpoint}/api/v1/query?query={encodedQuery}";
+                
+                var response = await _httpClient.GetAsync(queryUrl);
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var json = JsonDocument.Parse(content);
+                    
+                    if (json.RootElement.GetProperty("status").GetString() == "success")
+                    {
+                        var data = json.RootElement.GetProperty("data").GetProperty("result");
+                        
+                        foreach (var item in data.EnumerateArray())
+                        {
+                            var metric = item.GetProperty("metric");
+                            var value = item.GetProperty("value");
+                            
+                            results.Add(new
+                            {
+                                MetricName = query,
+                                Value = value[1].GetString(),
+                                Timestamp = DateTimeOffset.FromUnixTimeSeconds((long)value[0].GetDouble()).ToString("o"),
+                                Labels = metric.EnumerateObject()
+                                    .Where(p => p.Name != "__name__")
+                                    .ToDictionary(p => p.Name, p => p.Value.ToString())
+                            });
+                        }
+                    }
+                }
+            }
+
+            return JsonSerializer.Serialize(new 
+            { 
+                Timestamp = DateTime.UtcNow.ToString("o"),
+                Metrics = results 
+            }, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (Exception ex)
+        {
+            return $"Error getting application metrics: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description("Search IIS logs with filters")]
+    public async Task<string> SearchIisLogs(
+        [Description("Site name or pattern to filter logs")] string? siteName = null,
+        [Description("HTTP status code to filter (e.g., 500)")] int? statusCode = null,
+        [Description("URL path pattern to match")] string? urlPattern = null,
+        [Description("Start date in yyyy-MM-dd format")] string? startDate = null,
+        [Description("Maximum number of entries to return")] int limit = 100)
+    {
+        try
+        {
+            var logEntries = await ParseIisLogsAsync(siteName, startDate, limit * 10);
+
+            // Apply filters
+            var filtered = logEntries.AsEnumerable();
+
+            if (statusCode.HasValue)
+                filtered = filtered.Where(e => e.StatusCode == statusCode.Value);
+
+            if (!string.IsNullOrEmpty(urlPattern))
+                filtered = filtered.Where(e => Regex.IsMatch(e.UriStem, urlPattern, RegexOptions.IgnoreCase));
+
+            var results = filtered.Take(limit).ToList();
+
+            return JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (Exception ex)
+        {
+            return $"Error searching IIS logs: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description("Get IIS log statistics for error analysis")]
+    public async Task<string> GetIisErrorStats(
+        [Description("Site name to analyze")] string? siteName = null,
+        [Description("Time period in hours")] int hours = 24)
+    {
+        try
+        {
+            var startDate = DateTime.UtcNow.AddHours(-hours).ToString("yyyy-MM-dd");
+            var logs = await ParseIisLogsAsync(siteName, startDate, 10000);
+
+            var stats = new
+            {
+                TotalRequests = logs.Count,
+                ErrorsByStatus = logs
+                    .Where(l => l.StatusCode >= 400)
+                    .GroupBy(l => l.StatusCode)
+                    .Select(g => new { StatusCode = g.Key, Count = g.Count() })
+                    .OrderByDescending(x => x.Count)
+                    .ToList(),
+                TopErrorUrls = logs
+                    .Where(l => l.StatusCode >= 400)
+                    .GroupBy(l => l.UriStem)
+                    .Select(g => new { Url = g.Key, ErrorCount = g.Count() })
+                    .OrderByDescending(x => x.ErrorCount)
+                    .Take(10)
+                    .ToList(),
+                RequestsPerHour = logs
+                    .GroupBy(l => l.DateTime.Hour)
+                    .Select(g => new { Hour = g.Key, Count = g.Count() })
+                    .OrderBy(x => x.Hour)
+                    .ToList()
+            };
+
+            return JsonSerializer.Serialize(stats, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (Exception ex)
+        {
+            return $"Error analyzing IIS logs: {ex.Message}";
+        }
+    }
+
+    // Helper methods for formatting
+    private string FormatPrometheusInstantResponse(string jsonResponse)
+    {
+        try
+        {
+            var json = JsonDocument.Parse(jsonResponse);
+            var status = json.RootElement.GetProperty("status").GetString();
+            
+            if (status != "success")
+                return $"Query failed: {jsonResponse}";
+
+            var result = json.RootElement.GetProperty("data").GetProperty("result");
+            var formatted = new List<object>();
+
+            foreach (var item in result.EnumerateArray())
+            {
+                var metric = item.GetProperty("metric");
+                var value = item.GetProperty("value");
+                
+                formatted.Add(new
+                {
+                    Metric = metric.EnumerateObject()
+                        .Where(p => p.Name != "__name__")
+                        .ToDictionary(p => p.Name, p => p.Value.ToString()),
+                    MetricName = metric.TryGetProperty("__name__", out var name) ? name.GetString() : "unknown",
+                    Timestamp = DateTimeOffset.FromUnixTimeSeconds((long)value[0].GetDouble()).ToString("o"),
+                    Value = value[1].GetString()
+                });
+            }
+
+            return JsonSerializer.Serialize(new
+            {
+                Status = "success",
+                ResultCount = formatted.Count,
+                Results = formatted
+            }, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return jsonResponse;
+        }
+    }
+
+    private string FormatPrometheusRangeResponse(string jsonResponse)
+    {
+        try
+        {
+            var json = JsonDocument.Parse(jsonResponse);
+            var status = json.RootElement.GetProperty("status").GetString();
+            
+            if (status != "success")
+                return $"Query failed: {jsonResponse}";
+
+            var result = json.RootElement.GetProperty("data").GetProperty("result");
+            var formatted = new List<object>();
+
+            foreach (var item in result.EnumerateArray())
+            {
+                var metric = item.GetProperty("metric");
+                var values = item.GetProperty("values");
+                
+                var dataPoints = new List<object>();
+                foreach (var value in values.EnumerateArray())
+                {
+                    dataPoints.Add(new
+                    {
+                        Timestamp = DateTimeOffset.FromUnixTimeSeconds((long)value[0].GetDouble()).ToString("o"),
+                        Value = value[1].GetString()
+                    });
+                }
+                
+                formatted.Add(new
+                {
+                    Metric = metric.EnumerateObject()
+                        .Where(p => p.Name != "__name__")
+                        .ToDictionary(p => p.Name, p => p.Value.ToString()),
+                    MetricName = metric.TryGetProperty("__name__", out var name) ? name.GetString() : "unknown",
+                    DataPoints = dataPoints
+                });
+            }
+
+            return JsonSerializer.Serialize(new
+            {
+                Status = "success",
+                SeriesCount = formatted.Count,
+                Series = formatted
+            }, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return jsonResponse;
+        }
+    }
+
+    private string FormatTracesResponse(string content)
+    {
+        // Existing implementation
+        return content;
+    }
+
+    private string FormatMetricsResponse(string content)
+    {
+        // Existing implementation
+        return content;
+    }
+
+    private async Task<List<IisLogEntry>> ParseIisLogsAsync(string? siteName, string? startDate, int maxEntries)
+    {
+        var entries = new List<IisLogEntry>();
+        var logDirs = Directory.GetDirectories(_iisLogPath, siteName ?? "*");
+
+        foreach (var dir in logDirs)
+        {
+            var logFiles = Directory.GetFiles(dir, "*.log")
+                .Where(f => startDate == null || Path.GetFileName(f).CompareTo($"u_ex{startDate.Replace("-", "")[2..]}") >= 0)
+                .OrderByDescending(f => f)
+                .Take(10);
+
+            foreach (var file in logFiles)
+            {
+                await foreach (var line in File.ReadLinesAsync(file))
+                {
+                    if (line.StartsWith("#") || string.IsNullOrWhiteSpace(line))
+                        continue;
+
+                    var entry = ParseW3CLogLine(line);
+                    if (entry != null)
+                    {
+                        entries.Add(entry);
+                        if (entries.Count >= maxEntries)
+                            return entries;
+                    }
+                }
+            }
+        }
+
+        return entries;
+    }
+
+    private static IisLogEntry? ParseW3CLogLine(string line)
+    {
+        var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 10) return null;
+
+        try
+        {
+            return new IisLogEntry(
+                DateTime.Parse($"{parts[0]} {parts[1]}"),
+                parts[2],
+                parts[3],
+                parts[4],
+                parts[5],
+                int.Parse(parts[6]),
+                parts[8],
+                int.Parse(parts[10]),
+                parts.Length > 13 ? int.Parse(parts[13]) : 0
+            );
+        }
+        catch
+        {
+            return null;
+        }
+    }
+}
+
+public record IisLogEntry(
+    DateTime DateTime,
+    string ServerIp,
+    string Method,
+    string UriStem,
+    string UriQuery,
+    int ServerPort,
+    string ClientIp,
+    int StatusCode,
+    int TimeTaken
+);
+

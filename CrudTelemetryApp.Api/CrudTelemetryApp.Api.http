@@ -1,0 +1,13 @@
+@CrudTelemetryApp.Api_HostAddress = http://localhost:5158
+
+### Test WeatherForecast (should work)
+GET {{CrudTelemetryApp.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+### Test Prometheus Metrics on HTTPS
+GET https://localhost:7051/metrics
+
+### Test Prometheus Metrics on HTTP
+GET http://localhost:5158/metrics
+
+###

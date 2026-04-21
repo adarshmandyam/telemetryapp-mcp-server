@@ -1,0 +1,163 @@
+@Host = http://localhost:5139
+
+### 1) Initialize session
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "init-1",
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-03-26",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "vs-http-client",
+      "version": "1.0.0"
+    }
+  }
+}
+
+### 2) List all registered tools
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "list-tools",
+  "method": "tools/list",
+  "params": {}
+}
+
+### 3) Query Prometheus: products created
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "metrics-1",
+  "method": "tools/call",
+  "params": {
+    "name": "query_prometheus_metrics",
+    "arguments": {
+      "query": "products_created_total"
+    }
+  }
+}
+
+### 4) List all available Prometheus metrics
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "metrics-4",
+  "method": "tools/call",
+  "params": {
+    "name": "list_prometheus_metrics"
+  }
+}
+
+### 5) Get application metrics snapshot
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "metrics-3",
+  "method": "tools/call",
+  "params": {
+    "name": "get_application_metrics"
+  }
+}
+
+### 6) Query request rate over last 5 minutes
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "metrics-2",
+  "method": "tools/call",
+  "params": {
+    "name": "query_prometheus_metrics",
+    "arguments": {
+      "query": "rate(http_server_request_duration_count[5m])"
+    }
+  }
+}
+
+### 7) Query metrics over time range
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "metrics-5",
+  "method": "tools/call",
+  "params": {
+    "name": "query_metrics_range",
+    "arguments": {
+      "query": "products_created_total",
+      "step": "1m"
+    }
+  }
+}
+
+### 8) Query traces
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "traces-1",
+  "method": "tools/call",
+  "params": {
+    "name": "query_traces",
+    "arguments": {
+      "serviceName": "CrudTelemetryApp",
+      "limit": 20
+    }
+  }
+}
+
+### 9) Get all products
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "products-1",
+  "method": "tools/call",
+  "params": {
+    "name": "get_products"
+  }
+}
+
+### 10) Create a product
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "products-2",
+  "method": "tools/call",
+  "params": {
+    "name": "create_product",
+    "arguments": {
+      "name": "Test Widget",
+      "description": "Created via MCP",
+      "price": 29.99
+    }
+  }
+}

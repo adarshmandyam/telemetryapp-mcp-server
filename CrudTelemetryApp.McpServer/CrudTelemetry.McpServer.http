@@ -1,0 +1,192 @@
+@CrudTelemetry.McpServer_HostAddress = http://localhost:5139
+
+### Optional: API health check (HTTP profile)
+GET http://localhost:5158/api/products
+Accept: application/json
+
+###
+
+@Host = http://localhost:5139
+
+### 1) initialize
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "init-1",
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-03-26",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "vs-http-client",
+      "version": "1.0.0"
+    }
+  }
+}
+
+### 2) initialized notification
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/initialized",
+  "params": {}
+}
+
+### 3) tools/call -> QueryTraces
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "call-1",
+  "method": "tools/call",
+  "params": {
+    "name": "query_traces",
+    "arguments": {
+      "serviceName": "CrudTelemetryApp",
+      "limit": 20
+    }
+  }
+}
+
+### 3) tools/call -> get_all_products
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+{
+  "jsonrpc":"2.0",
+  "id":"call-1",
+  "method":"tools/call",
+  "params":{
+    "name":"get_all_products",
+    "arguments": {}
+  }
+}
+
+### 3) tools/call -> query_prometheus_metrics
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+{
+  "jsonrpc": "2.0",
+  "id": "call-1",
+  "method": "tools/call",
+  "params": {
+    "name": "query_prometheus_metrics",
+    "arguments": {
+      "query": "products_created_total",
+      "time": null
+    }
+  }
+}
+
+### 3) tools/call -> query_metrics_range
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+{
+  "jsonrpc": "2.0",
+  "id": "call-2",
+  "method": "tools/call",
+  "params": {
+    "name": "query_metrics_range",
+    "arguments": {
+      "query": "rate(http_server_request_duration_count[5m])",
+      "start": "2026-04-20T10:00:00Z",
+      "end": "2026-04-20T11:00:00Z",
+      "step": "1m"
+    }
+  }
+}
+
+### 3) tools/call -> list_prometheus_metrics
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+{
+  "jsonrpc": "2.0",
+  "id": "call-3",
+  "method": "tools/call",
+  "params": {
+    "name": "list_prometheus_metrics",
+    "arguments": {}
+  }
+}
+
+### 3) tools/call -> get_application_metrics
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+{
+  "jsonrpc": "2.0",
+  "id": "call-4",
+  "method": "tools/call",
+  "params": {
+    "name": "get_application_metrics",
+    "arguments": {}
+  }
+}
+
+### 4) tools/list
+POST {{Host}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc":"2.0",
+  "id":"list-1",
+  "method":"tools/list",
+  "params":{}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
